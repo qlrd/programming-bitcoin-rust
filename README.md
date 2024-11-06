@@ -6,4 +6,10 @@ It isn't intent to be used as a real production code.
 For it i used Jimmy Song's [Programming Bitcoin](https://github.com/jimmysong/programmingbitcoin),
 with the difference that the exercises will be implemented in `rust` instead of `python`.
 
+## Test
+
+```bash
+cargo test
+```
+
 

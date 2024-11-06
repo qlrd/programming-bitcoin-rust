@@ -4,6 +4,7 @@
  * See "Constructing a finite field in python"
  */
 use std::fmt;
+use std::ops::{Add, Sub};
 
 #[derive(Debug, Clone)]
 pub struct FieldElement {
@@ -53,7 +54,7 @@ impl fmt::Display for FieldElement {
     }
 }
 
-// Implement PartialEq trait to mimit __eq__ in python
+// Implement PartialEq trait to mimic __eq__ in python
 impl PartialEq for FieldElement {
 
     /*
@@ -70,4 +71,52 @@ impl PartialEq for FieldElement {
      fn eq(&self, other: &Self) -> bool {
         self.num == other.num && self.prime == other.prime
      }
+}
+
+// Implement Add trait to mimic __add__ in python
+impl Add for FieldElement {
+
+    type Output = Self;
+    
+    /* 
+     * We have to ensure that the elements are from the same
+     * finite field and define it with the modulo operation,
+     * returning an instance of FiniteElement struct
+     * 
+     * @param self: a immutable FiniteElement
+     * @param other: another immutable FieldElement
+     * @returns FieldElement
+     */
+    fn add(self, other: FieldElement) -> Self {
+        if self.prime != other.prime {
+            panic!("Cannot add two numbers in different fields");
+        }
+        let num = (self.num + other.num) % self.prime;
+        Self { num: num, prime: self.prime }   
+    }
+}
+
+// Implement Add trait to mimic __add__ in python
+impl Sub for FieldElement {
+
+    type Output = Self;
+    
+    /* 
+     * We have to ensure that the elements are from the same
+     * finite field and define it with the modulo operation,
+     * returning an instance of FiniteElement struct
+     * 
+     * @param self: a immutable FiniteElement
+     * @param other: another immutable FieldElement
+     * @returns FieldElement
+     */
+    fn sub(self, other: FieldElement) -> Self {
+        if self.prime != other.prime {
+            panic!("Cannot add two numbers in different fields");
+        }
+        // i64 (to handle potentially negative results).
+        // rem_euclid to ensure the result is positive within the field.
+        let num = (self.num as i64 - other.num as i64).rem_euclid(self.prime as i64) as u64;
+        Self { num: num, prime: self.prime }
+    }
 }
