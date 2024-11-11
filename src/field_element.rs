@@ -37,6 +37,28 @@ impl FieldElement {
         // The rest assigns the initialization values
         Ok(Self { num, prime })
     }
+
+    /*
+     * Repeatedly square the base and reduce it modulo prime at each step.
+     * Also multiply by base when the current exponent bit is 1. 
+     * This approach works well with arbitrarily large exponents.
+     */
+    #[allow(dead_code)]
+    pub fn pow(&self, exponent: u64) -> Self {
+        let mut base = self.num;
+        let mut exp = exponent;
+        let mut result = 1;
+
+        while exp > 0 {
+            if exp % 2 == 1 {
+                result = (result * base) % self.prime;
+            }
+            base = (base * base) % self.prime;
+            exp /= 2;
+        } 
+
+        FieldElement { num: result, prime: self.prime }
+    }
 }
 
 // Implement Display trait to mimic  __repr__ in python

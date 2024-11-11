@@ -86,4 +86,11 @@ mod tests {
         let fe2 = FieldElement::new(3, 7).unwrap();
         let _ = fe1.clone() * fe2.clone();
     }
+
+    #[test]
+    fn test_pow() {
+        let fe1 = FieldElement::new(2, 7).unwrap();
+        let expected_result = FieldElement::new(2, 7).unwrap();
+        assert_eq!(fe1.pow(4), expected_result);
+    }
 }
