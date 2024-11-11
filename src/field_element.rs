@@ -4,7 +4,7 @@
  * See "Constructing a finite field in python"
  */
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul};
 
 #[derive(Debug, Clone)]
 pub struct FieldElement {
@@ -25,6 +25,7 @@ impl FieldElement {
      * @param num<u64>: the number to be represented
      * @param prime<u64>: the finite field's order
      */
+    #[allow(dead_code)]
     pub fn new(num: u64, prime: u64) -> Result<Self, String> {
 
         // Since we defined num as a u64 type, it's useless
@@ -118,5 +119,28 @@ impl Sub for FieldElement {
         // rem_euclid to ensure the result is positive within the field.
         let num = (self.num as i64 - other.num as i64).rem_euclid(self.prime as i64) as u64;
         Self { num: num, prime: self.prime }
+    }
+}
+
+// Implement Mul trait to mimic __mul__ in python
+impl Mul for FieldElement {
+
+    type Output = Self;
+    
+    /* 
+     * We have to ensure that the elements are from the same
+     * finite field and define it with the modulo operation,
+     * returning an instance of FiniteElement struct
+     * 
+     * @param self: a immutable FiniteElement
+     * @param other: another immutable FieldElement
+     * @returns FieldElement
+     */
+    fn mul(self, other: FieldElement) -> Self {
+        if self.prime != other.prime {
+            panic!("Cannot mull two numbers in different fields");
+        }
+        let num = (self.num * other.num) % self.prime;
+        Self { num: num, prime: self.prime}
     }
 }

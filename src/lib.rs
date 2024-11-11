@@ -1,9 +1,9 @@
 mod field_element; 
-use field_element::FieldElement; 
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use field_element::FieldElement; 
 
     #[test]
     fn test_print() {
@@ -41,9 +41,8 @@ mod tests {
         let fe1 = FieldElement::new(2, 7).unwrap();
         let fe2 = FieldElement::new(3, 7).unwrap();
         
-        let wanted_result = fe1.clone() + fe2.clone();
         let expected_result = FieldElement::new(5, 7).unwrap();
-        assert_eq!(&wanted_result, &expected_result);
+        assert_eq!(fe1 + fe2, expected_result);
     }
     
     #[test]
@@ -51,7 +50,7 @@ mod tests {
     fn test_fail_add_different_field() {  
         let fe1 = FieldElement::new(2, 6).unwrap();
         let fe2 = FieldElement::new(3, 7).unwrap();
-        fe1.clone() + fe2.clone();
+        let _ = fe1.clone() + fe2.clone();
     }
     
     #[test]
@@ -59,9 +58,8 @@ mod tests {
         let fe1 = FieldElement::new(2, 7).unwrap();
         let fe2 = FieldElement::new(3, 7).unwrap();
         
-        let wanted_result = fe1.clone() - fe2.clone();
         let expected_result = FieldElement::new(6, 7).unwrap();
-        assert_eq!(&wanted_result, &expected_result);
+        assert_eq!(fe1 - fe2, expected_result);
     }
     
     #[test]
@@ -69,6 +67,23 @@ mod tests {
     fn test_fail_sub_different_field() {  
         let fe1 = FieldElement::new(2, 6).unwrap();
         let fe2 = FieldElement::new(3, 7).unwrap();
-        fe1.clone() - fe2.clone();
+        let _ = fe1.clone() - fe2.clone();
+    }
+    
+    #[test]
+    fn test_mul_same_field() {  
+        let fe1 = FieldElement::new(2, 7).unwrap();
+        let fe2 = FieldElement::new(3, 7).unwrap();
+        
+        let expected_result = FieldElement::new(6, 7).unwrap();
+        assert_eq!(fe1 * fe2, expected_result);
+    }
+    
+    #[test]
+    #[should_panic]
+    fn test_fail_mul_different_field() {  
+        let fe1 = FieldElement::new(2, 6).unwrap();
+        let fe2 = FieldElement::new(3, 7).unwrap();
+        let _ = fe1.clone() * fe2.clone();
     }
 }
