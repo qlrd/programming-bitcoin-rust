@@ -4,7 +4,7 @@
  * See "Constructing a finite field in python"
  */
 use std::fmt;
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Sub, Mul, Div};
 
 #[derive(Debug, Clone)]
 pub struct FieldElement {
@@ -44,9 +44,14 @@ impl FieldElement {
      * This approach works well with arbitrarily large exponents.
      */
     #[allow(dead_code)]
-    pub fn pow(&self, exponent: u64) -> Self {
+    pub fn pow(&self, exponent: i64) -> Self {
         let mut base = self.num;
-        let mut exp = exponent;
+        let mut exp = if exponent < 0 {
+            (self.prime - 2) as u64 * (- exponent) as u64
+        } else {
+            exponent as u64
+        };
+        
         let mut result = 1;
 
         while exp > 0 {
@@ -56,8 +61,8 @@ impl FieldElement {
             base = (base * base) % self.prime;
             exp /= 2;
         } 
-
-        FieldElement { num: result, prime: self.prime }
+        
+        Self { num: result, prime: self.prime }
     }
 }
 
@@ -166,3 +171,32 @@ impl Mul for FieldElement {
         Self { num: num, prime: self.prime}
     }
 }
+
+// Implement Div trait to mimic __truediv__ in python
+impl Div for FieldElement {
+
+    type Output = Self;
+    
+    /* 
+     * We have to ensure that the elements are from the same
+     * finite field and define it with the modulo operation,
+     * returning an instance of FiniteElement struct
+     * 
+     * @param self: a immutable FiniteElement
+     * @param other: another immutable FieldElement
+     * @returns FieldElement
+     */
+    fn div(self, other: FieldElement) -> Self {
+        if self.prime != other.prime {
+            panic!("Cannot div two numbers in different fields");
+        }
+        if other.num == 0 {
+            panic!("Cannot divide by zero in a finite field");
+        }
+
+        // Fermat's little theorem
+        let exp = other.pow((self.prime - 2).try_into().unwrap());
+        let num = (self.num * exp.num) % self.prime;
+        Self { num: num, prime: self.prime}
+    }
+} 
