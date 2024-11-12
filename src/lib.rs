@@ -1,4 +1,5 @@
 mod field_element; 
+mod point;
 
 #[cfg(test)]
 mod field_element_test {
@@ -192,4 +193,57 @@ mod field_element_test {
         let fe2 = FieldElement::new(BigUint::zero(), prime.clone()).unwrap();
         let _ = fe1.clone() / fe2.clone();
     }
+}
+
+#[cfg(test)]
+mod point_test {  
+    use super::*;
+    use point::Point;
+    use field_element::FieldElement;
+    use num_bigint::BigUint;
+    use num_traits::Num;
+    
+    #[test]
+    fn test_015_print() {
+        let x = BigUint::from_str_radix("1", 10).unwrap();
+        let y = BigUint::from_str_radix("3", 10).unwrap();
+        let a = BigUint::from_str_radix("2", 10).unwrap();
+        let b = BigUint::from_str_radix("6", 10).unwrap();
+        let p = BigUint::from_str_radix("13", 10).unwrap();
+
+        
+        let fe_x = FieldElement::new(x, p.clone()).unwrap();
+        let fe_y = FieldElement::new(y, p.clone()).unwrap();
+        let fe_a = FieldElement::new(a, p.clone()).unwrap();
+        let fe_b = FieldElement::new(b, p.clone()).unwrap();
+
+        let point = Point::new(fe_x, fe_y, fe_a, fe_b);
+        
+         match point {
+            Ok(f) => println!("{}", f),
+            Err(e) => panic!("Error: {}", e),
+        }
+    }
+    
+    #[test]
+    fn test_016_equality_same_point(){
+        let x = BigUint::from_str_radix("1", 10).unwrap();
+        let y = BigUint::from_str_radix("3", 10).unwrap();
+        let a = BigUint::from_str_radix("2", 10).unwrap();
+        let b = BigUint::from_str_radix("6", 10).unwrap();
+        let p = BigUint::from_str_radix("13", 10).unwrap();
+
+        
+        let fe_x = FieldElement::new(x, p.clone()).unwrap();
+        let fe_y = FieldElement::new(y, p.clone()).unwrap();
+        let fe_a = FieldElement::new(a, p.clone()).unwrap();
+        let fe_b = FieldElement::new(b, p.clone()).unwrap();
+
+        let p1 = Point::new(fe_x.clone(), fe_y.clone(), fe_a.clone(), fe_b.clone());
+        let p2 = Point::new(fe_x.clone(), fe_y.clone(), fe_a.clone(), fe_b.clone());
+
+        assert_eq!(p1, p2)
+    }
+    
+    
 }
