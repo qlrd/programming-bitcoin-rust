@@ -30,7 +30,8 @@ impl Point {
     ) -> Result<Self, String> {
         let two = BigUint::from(2u32).into();
         let three = BigUint::from(3u32).into();
-        
+
+        // We check here that the point is actually on the curve
         if y.pow(two) != x.pow(three) + (a.clone() * x.clone()) + b.clone() {
             return Err(
                 format!(
@@ -72,7 +73,10 @@ impl PartialEq for Point {
 
     /*
      * Check if two implementations of Point are equal.
-     * This is only true when both x, y, a, b are equal
+     * This is only true when both x, y, a, b are equal.
+     *
+     * Points are equal if and only if they are on the
+     * same curve and have the same coordinates.
      *
      * @param &self: a immutable reference to a Point
      * @param &Self: a immutable reference to another Point

@@ -244,6 +244,32 @@ mod point_test {
 
         assert_eq!(p1, p2)
     }
-    
+
+    #[test]
+    fn test_017_inequality_same_point(){
+        let a = BigUint::from_str_radix("2", 10).unwrap();
+        let b = BigUint::from_str_radix("6", 10).unwrap();
+        let p = BigUint::from_str_radix("13", 10).unwrap();
+        
+        let x1 = BigUint::from_str_radix("1", 10).unwrap();
+        let y1 = BigUint::from_str_radix("3", 10).unwrap();
+        
+        let x2 = BigUint::from_str_radix("8", 10).unwrap();
+        let y2 = BigUint::from_str_radix("1", 10).unwrap();
+
+        let fe_x1 = FieldElement::new(x1, p.clone()).unwrap();
+        let fe_y1 = FieldElement::new(y1, p.clone()).unwrap();
+        
+        let fe_x2 = FieldElement::new(x2, p.clone()).unwrap();
+        let fe_y2 = FieldElement::new(y2, p.clone()).unwrap();
+        
+        let fe_a = FieldElement::new(a, p.clone()).unwrap();
+        let fe_b = FieldElement::new(b, p.clone()).unwrap();
+
+        let p1 = Point::new(fe_x1, fe_y1, fe_a.clone(), fe_b.clone());
+        let p2 = Point::new(fe_x2, fe_y2, fe_a.clone(), fe_b.clone());
+
+        assert_ne!(p1, p2)
+    }
     
 }
