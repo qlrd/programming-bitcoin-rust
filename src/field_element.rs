@@ -4,6 +4,7 @@
  * See "Constructing a finite field in python"
  */
 use std::fmt;
+use std::cmp::Ordering;
 use std::ops::{Add, Sub, Mul, Div};
 use num_bigint::{BigInt, BigUint, ToBigUint};
 use num_traits::{One, Zero};
@@ -32,20 +33,27 @@ impl FieldElement {
 
         // Since we defined num as a U256 type, it's useless
         // to compare if num < 0
-        if num >= prime {
-            return Err(
-                format!(
-                    "Num {} not in field range 0 to {}",
-                    num,
-                    &prime - BigUint::one()
-                )
-            );
+        match num.cmp(&num) {
+            Ordering::Less => {
+                return Err(format!("{} not in field [0..{})", num, &prime - BigUint::one()))
+            },
+            Ordering::Equal => return Ok(Self {num, prime}),
+            Ordering::Greater => return Ok(Self {num, prime}),
         }
-
-        // The rest assigns the initialization values
-        Ok(Self { num, prime })
     }
 
+    #[allow(dead_code)]
+    fn wrap_exponent(&self, exponent: &BigInt) -> BigUint {
+        match exponent.cmp(&BigInt::zero()) {
+            Ordering::Less => {
+                let pos_exp = (-exponent).to_biguint().unwrap();
+                return &self.prime - BigUint::one() - pos_exp
+            },
+            Ordering::Equal => return exponent.to_biguint().unwrap(),
+            Ordering::Greater => return exponent.to_biguint().unwrap(),
+        }
+    }
+    
     /*
      * Repeatedly square the base and reduce it modulo prime at each step.
      * Also multiply by base when the current exponent bit is 1. 
@@ -53,12 +61,7 @@ impl FieldElement {
      */
     #[allow(dead_code)]
     pub fn pow(&self, exponent: BigInt) -> Self {
-        let exp = if exponent < BigInt::zero() {
-            let pos_exp = (-exponent).to_biguint().unwrap();
-            &self.prime - BigUint::one() - pos_exp
-        } else {
-            exponent.to_biguint().unwrap()
-        };
+        let exp = self.wrap_exponent(&exponent);
 
         // Continue with exponentiation by squaring
         let mut base = self.num.clone();
@@ -127,11 +130,13 @@ impl Add for FieldElement {
      * @returns FieldElement
      */
     fn add(self, other: FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("Cannot add two numbers in different fields");
+        match self.prime.cmp(&other.prime) {
+            Ordering::Equal => {
+                let num = (self.num.clone() + other.num) % &self.prime;
+                return Self { num: num, prime: self.prime.clone() }   
+            },
+            _ => panic!("Cannot add two numbers in different fields")
         }
-        let num = (self.num.clone() + other.num) % &self.prime;
-        Self { num: num, prime: self.prime.clone() }   
     }
 }
 
@@ -150,18 +155,32 @@ impl Sub for FieldElement {
      * @returns FieldElement
      */
     fn sub(self, other: FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("Cannot subtract two numbers in different fields");
+        match self.prime.cmp(&other.prime) {
+            Ordering::Equal => {
+                // wrap around by adding `self.prime` to avoid negative result
+                match self.num.cmp(&other.num) {
+                    Ordering::Less => {
+                        Self {
+                            num: &self.num + &self.prime - &other.num,
+                            prime: self.prime.clone()
+                        }
+                    },
+                    Ordering::Equal => {
+                        Self {
+                            num: &self.num - &other.num,
+                            prime: self.prime.clone()
+                        }
+                    },
+                    Ordering::Greater => {
+                        Self {
+                            num: &self.num - &other.num,
+                            prime: self.prime.clone()
+                        }
+                    }
+                }
+            },
+            _ => panic!("Cannot subtract two numbers in different fields")
         }
-
-        // wrap around by adding `self.prime` to avoid negative result
-        let result = if self.num >= other.num {
-            &self.num - &other.num
-        } else {
-            &self.num + &self.prime - &other.num
-        };
-        
-        Self { num: result, prime: self.prime.clone() }
     }
 }
 
@@ -180,11 +199,13 @@ impl Mul for FieldElement {
      * @returns FieldElement
      */
     fn mul(self, other: FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("Cannot mull two numbers in different fields");
+        match self.prime.cmp(&other.prime) {
+            Ordering::Equal => {
+                let num = (self.num * other.num) % &self.prime;
+                Self { num: num, prime: self.prime.clone() }
+            },
+            _ => panic!("Cannot mull two numbers in different fields")
         }
-        let num = (self.num * other.num) % &self.prime;
-        Self { num: num, prime: self.prime.clone() }
     }
 }
 
@@ -203,17 +224,21 @@ impl Div for FieldElement {
      * @returns FieldElement
      */
     fn div(self, other: FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("Cannot div two numbers in different fields");
+        match self.prime.cmp(&other.prime) {
+            Ordering::Equal => {
+                match other.num.cmp(&BigUint::zero()) {
+                    Ordering::Equal => panic!("Cannot divide by zero in a finite field"),
+                    _ => {
+                        // Fermat's little theorem
+                        let exp = other.pow(
+                            (self.prime.clone() - 2.to_biguint().unwrap()).into()
+                        );
+                        let num = (self.num * exp.num) % &self.prime;
+                        Self { num: num, prime: self.prime.clone() }
+                    }
+                }
+            },
+            _ => panic!("Cannot div two numbers in different fields")
         }
-        if other.num == BigUint::zero() {
-            panic!("Cannot divide by zero in a finite field");
-        }
-
-        // Fermat's little theorem
-        let exp = other.pow((self.prime.clone() - 2.to_biguint().unwrap()).into());
-        let num = (self.num * exp.num) % &self.prime;
-        
-        Self { num: num, prime: self.prime.clone() }
     }
-} 
+}
