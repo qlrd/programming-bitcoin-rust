@@ -1,3 +1,3 @@
 fn main() {
-    println!("See tests on src/lib.rs")
+    println!("Programming bitcoin in rust");
 }
