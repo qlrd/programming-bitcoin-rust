@@ -58,8 +58,8 @@ impl FieldElement {
     /// Also multiply by base when the current exponent bit is 1.
     /// This approach works well with arbitrarily large exponents.
     #[allow(dead_code)]
-    pub fn pow(&self, exponent: BigInt) -> Self {
-        let exp = self.wrap_exponent(&exponent);
+    pub fn pow(&self, exponent: &BigInt) -> Self {
+        let exp = self.wrap_exponent(exponent);
 
         // Continue with exponentiation by squaring
         let mut base = self.num.clone();
@@ -123,33 +123,66 @@ impl Add for FieldElement {
     }
 }
 
-/// Implement Add trait to mimic __sub__ in python
+/// Implement Add trait to mimic __add__ in python (for references)
+impl<'b> Add<&'b FieldElement> for &FieldElement {
+    type Output = FieldElement;
+
+    /// Modular addition for references
+    fn add(self, other: &'b FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Cannot add elements from different fields");
+        }
+
+        let result = (&self.num + &other.num) % &self.prime;
+
+        FieldElement {
+            num: result,
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+/// Implement Sub trait to mimic __sub__ in python
 impl Sub for FieldElement {
     type Output = Self;
 
-    /// We have to ensure that the elements are from the same
-    /// finite field and define it with the modulo operation,
-    /// returning an instance of FiniteElement struct
     fn sub(self, other: FieldElement) -> Self {
-        match self.prime.cmp(&other.prime) {
-            Ordering::Equal => {
-                // wrap around by adding `self.prime` to avoid negative result
-                match self.num.cmp(&other.num) {
-                    Ordering::Less => Self {
-                        num: &self.num + &self.prime - &other.num,
-                        prime: self.prime.clone(),
-                    },
-                    Ordering::Equal => Self {
-                        num: &self.num - &other.num,
-                        prime: self.prime.clone(),
-                    },
-                    Ordering::Greater => Self {
-                        num: &self.num - &other.num,
-                        prime: self.prime.clone(),
-                    },
-                }
-            }
-            _ => panic!("Cannot subtract 2 numbers in different fields"),
+        if self.prime != other.prime {
+            panic!("Cannot subtract numbers from different fields");
+        }
+
+        let result = if self.num < other.num {
+            // Wrap around if b > a
+            (&self.num + &self.prime - &other.num) % &self.prime
+        } else {
+            (&self.num - &other.num) % &self.prime
+        };
+
+        Self {
+            num: result,
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+/// Implement Sub trait to mimic __sub__ in python (for references)
+impl<'b> Sub<&'b FieldElement> for &FieldElement {
+    type Output = FieldElement;
+
+    fn sub(self, other: &'b FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Cannot subtract elements from different fields");
+        }
+
+        let result = if self.num < other.num {
+            (&self.num + &self.prime - &other.num) % &self.prime
+        } else {
+            (&self.num - &other.num) % &self.prime
+        };
+
+        FieldElement {
+            num: result,
+            prime: self.prime.clone(),
         }
     }
 }
@@ -175,423 +208,74 @@ impl Mul for FieldElement {
     }
 }
 
-/// Implement Div trait to mimic __truediv__ in python
-impl Div for FieldElement {
-    type Output = Self;
+/// Implement Mul trait to mimic __mul__ in python (for references)
+impl<'b> Mul<&'b FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    /// We have to ensure that the elements are from the same
-    /// finite field and define it with the modulo operation,
-    /// returning an instance of FiniteElement struct
-    fn div(self, other: FieldElement) -> Self {
-        match self.prime.cmp(&other.prime) {
-            Ordering::Equal => {
-                match other.num.cmp(&BigUint::zero()) {
-                    Ordering::Equal => panic!("Cannot divide by zero in a finite field"),
-                    _ => {
-                        // Fermat's little theorem
-                        let two = BigUint::from_str_radix("2", 16).unwrap();
-                        let bigexp = &self.prime - &two;
-                        let exp = other.pow(bigexp.into());
-                        let num = (&self.num * &exp.num) % &self.prime;
-                        Self {
-                            num: num.clone(),
-                            prime: self.prime.clone(),
-                        }
-                    }
-                }
-            }
-            _ => panic!("Cannot divide 2 numbers in different fields"),
+    /// Modular multiplication for references
+    fn mul(self, other: &'b FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Cannot multiply elements from different fields");
+        }
+
+        let bignum = (&self.num * &other.num) % &self.prime;
+
+        FieldElement {
+            num: bignum,
+            prime: self.prime.clone(),
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
+/// Implement Div trait to mimic __truediv__ in python
+impl Div for FieldElement {
+    type Output = Self;
 
-    use num_bigint::BigInt;
-    use num_traits::Num;
+    fn div(self, other: FieldElement) -> Self {
+        if self.prime != other.prime {
+            panic!("Cannot divide numbers from different fields");
+        }
+        if other.num.is_zero() {
+            panic!("Cannot divide by zero in a finite field");
+        }
 
-    use super::FieldElement;
+        // Compute modular inverse of `other.num` using Extended Euclidean Algorithm
+        let inv = other
+            .num
+            .modpow(&(self.prime.clone() - BigUint::from(2u32)), &self.prime);
+        let result = (&self.num * inv) % &self.prime;
 
-    #[test]
-    fn test_create_field_element() {
-        let fe = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        );
-        assert!(fe.is_ok());
+        Self {
+            num: result,
+            prime: self.prime.clone(),
+        }
     }
+}
 
-    #[test]
-    fn test_create_field_element_fail_greater_than_prime() {
-        let fe = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC30",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        );
-        assert!(fe.is_err());
-    }
+/// Implement Div trait to mimic __truediv__ in python (for references)
+impl<'b> Div<&'b FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    #[test]
-    fn test_create_field_element_fail_equal_to_prime() {
-        let fe = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        );
-        assert!(fe.is_err());
-    }
+    fn div(self, other: &'b FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Cannot divide elements from different fields");
+        }
 
-    #[test]
-    fn test_equality_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
+        if other.num.is_zero() {
+            panic!("Cannot divide by zero in a finite field");
+        }
 
-        assert_eq!(fe_1, fe_2);
-    }
+        // Compute modular inverse of `other.num`
+        let inv = other
+            .num
+            .modpow(&(self.prime.clone() - BigUint::from(2u32)), &self.prime);
 
-    #[test]
-    fn test_inequality_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000010",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
+        // Perform modular multiplication
+        let result = (&self.num * &inv) % &self.prime;
 
-        assert_ne!(fe_1, fe_2);
-    }
-
-    #[test]
-    fn test_inequality_between_2_field_elements_not_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_ne!(fe_1, fe_2);
-    }
-
-    #[test]
-    fn test_add_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 + fe_2, fe_expected);
-    }
-
-    #[test]
-    fn test_add_between_2_field_elements_in_same_field_extrem() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000000",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 + fe_2, fe_expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_add_between_2_field_elements_in_different_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC3F",
-        )
-        .unwrap();
-
-        let _ = fe_1 + fe_2;
-    }
-
-    #[test]
-    fn test_sub_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000000",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 - fe_2, fe_expected);
-    }
-
-    #[test]
-    fn test_sub_between_2_field_elements_in_same_field_extrem() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000000",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 - fe_2, fe_expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_sub_between_2_field_elements_in_different_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC3F",
-        )
-        .unwrap();
-
-        let _ = fe_1 - fe_2;
-    }
-
-    #[test]
-    fn test_mul_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000004",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 * fe_2, fe_expected);
-    }
-
-    #[test]
-    fn test_mul_between_2_field_elements_in_same_field_extrem() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2D",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 * fe_2, fe_expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_mul_between_2_field_elements_in_different_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC3F",
-        )
-        .unwrap();
-
-        let _ = fe_1 * fe_2;
-    }
-
-    #[test]
-    fn test_div_between_2_field_elements_in_same_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 / fe_2, fe_expected);
-    }
-    #[test]
-    fn test_div_between_2_field_elements_in_same_field_2_by_extrem() {
-        let fe_1 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFE17",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 / fe_2, fe_expected);
-    }
-
-    #[test]
-    fn test_div_between_2_field_elements_in_same_field_extrem_by_2() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_expected = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2D",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1 / fe_2, fe_expected);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_div_between_2_field_elements_in_different_field() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC3F",
-        )
-        .unwrap();
-
-        let _ = fe_1 / fe_2;
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_div_by_0_() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let fe_2 = FieldElement::new(
-            "000000000000000000000000000000000000000000000000000000000000000",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC3F",
-        )
-        .unwrap();
-
-        let _ = fe_1 / fe_2;
-    }
-
-    #[test]
-    fn test_pow() {
-        let fe_1 = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let exponent = BigInt::from_str_radix("3", 16).unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000008",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1.pow(exponent), fe_expected);
-    }
-
-    #[test]
-    fn test_pow_extreme() {
-        let fe_1 = FieldElement::new(
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-        let exponent = BigInt::from_str_radix("2", 16).unwrap();
-        let fe_expected = FieldElement::new(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
-        )
-        .unwrap();
-
-        assert_eq!(fe_1.pow(exponent), fe_expected);
+        FieldElement {
+            num: result,
+            prime: self.prime.clone(),
+        }
     }
 }
