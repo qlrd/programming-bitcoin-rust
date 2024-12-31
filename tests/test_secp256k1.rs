@@ -1,8 +1,10 @@
 use programming_bitcoin_in_rust::primitives::field_element::FieldElement;
-use programming_bitcoin_in_rust::primitives::secp256k1::Secp256k1Point;
+use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1, Secp256k1Point, ORDER, PRIME};
 
 #[cfg(test)]
 mod tests {
+
+    use num_bigint::BigUint;
 
     use super::*;
 
@@ -197,5 +199,77 @@ mod tests {
         let p3 = Secp256k1Point::new(Some(x3), Some(y3)).unwrap();
 
         assert_eq!(p1 + p2, p3);
+    }
+
+    #[test]
+    fn test_generator_as_point() {
+        let x = FieldElement::new(
+            "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
+            PRIME,
+        )
+        .unwrap();
+        let y = FieldElement::new(
+            "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8",
+            PRIME,
+        )
+        .unwrap();
+        let p = Secp256k1Point::new(Some(x), Some(y)).unwrap();
+
+        let g = Secp256k1::Generator.as_point();
+
+        assert_eq!(g, p);
+    }
+
+    #[test]
+    fn test_ininity_as_point() {
+        let p = Secp256k1Point::new(None, None).unwrap();
+        let i = Secp256k1::Infinity.as_point();
+        assert_eq!(i, p);
+    }
+
+    #[test]
+    fn test_order_mul_generator_is_infinity() {
+        let g = Secp256k1::Generator.as_point();
+        let o = Secp256k1::Order.as_biguint();
+        let i = Secp256k1::Infinity.as_point();
+
+        assert_eq!(&g * &o, i);
+        assert_eq!(o * g, i);
+    }
+
+    #[test]
+    fn test_mul_double_g() {
+        let g = Secp256k1::Generator.as_point();
+        let x = FieldElement::new(
+            "C6047F9441ED7D6D3045406E95C07CD85C778E4B8CEF3CA7ABAC09B95C709EE5",
+            PRIME,
+        )
+        .unwrap();
+        let y = FieldElement::new(
+            "1AE168FEA63DC339A3C58419466CEAEEF7F632653266D0E1236431A950CFE52A",
+            PRIME,
+        )
+        .unwrap();
+        let p = Secp256k1Point::new(Some(x), Some(y)).unwrap();
+        let two = BigUint::from(2u32);
+        assert_eq!(two * g, p);
+    }
+
+    #[test]
+    fn test_mul_triple_g() {
+        let g = Secp256k1::Generator.as_point();
+        let x = FieldElement::new(
+            "F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",
+            PRIME,
+        )
+        .unwrap();
+        let y = FieldElement::new(
+            "388F7B0F632DE8140FE337E62A37F3566500A99934C2231B6CB9FD7584B8E672",
+            PRIME,
+        )
+        .unwrap();
+        let p = Secp256k1Point::new(Some(x), Some(y)).unwrap();
+        let three = BigUint::from(3u32);
+        assert_eq!(three * g, p);
     }
 }

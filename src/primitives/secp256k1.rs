@@ -5,16 +5,25 @@
  */
 
 use crate::primitives::field_element::FieldElement;
-use num_bigint::BigInt;
-use std::ops::Add;
+use core::panic;
+use num_bigint::{BigInt, BigUint};
+use num_traits::{Num, One, Zero};
+use std::ops::{Add, Mul, Shl, Shr};
 
-const PRIME: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
-const ORDER: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
+pub const PRIME: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
+pub const ORDER: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
 
 #[derive(Debug, Clone)]
 pub struct Secp256k1Point {
     x: Option<FieldElement>,
     y: Option<FieldElement>,
+}
+
+pub enum Secp256k1 {
+    Generator,
+    Infinity,
+    Prime,
+    Order,
 }
 
 /// This represent secp256k1 group elements (curve points or infinity)
@@ -60,6 +69,36 @@ impl Secp256k1Point {
                     &x, &y
                 ))
             }
+        }
+    }
+}
+
+impl Secp256k1 {
+    pub fn as_point(&self) -> Secp256k1Point {
+        match self {
+            Secp256k1::Infinity => Secp256k1Point::new(None, None).unwrap(),
+            Secp256k1::Generator => {
+                let x = FieldElement::new(
+                    "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
+                    PRIME,
+                )
+                .unwrap();
+                let y = FieldElement::new(
+                    "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8",
+                    PRIME,
+                )
+                .unwrap();
+                Secp256k1Point::new(Some(x), Some(y)).unwrap()
+            }
+            _ => panic!("Invalid enum as_point"),
+        }
+    }
+
+    pub fn as_biguint(&self) -> BigUint {
+        match self {
+            Secp256k1::Prime => BigUint::from_str_radix(PRIME, 16).unwrap(),
+            Secp256k1::Order => BigUint::from_str_radix(ORDER, 16).unwrap(),
+            _ => panic!("Invalid enum as biguint"),
         }
     }
 }
@@ -239,5 +278,81 @@ impl<'b> Add<&'b Secp256k1Point> for &Secp256k1Point {
             x: Some(x3),
             y: Some(y3),
         }
+    }
+}
+
+impl Mul<BigUint> for Secp256k1Point {
+    type Output = Secp256k1Point;
+
+    fn mul(self, other: BigUint) -> Secp256k1Point {
+        let mut coef = other.clone();
+        let mut current = self.clone();
+        let mut result = Secp256k1Point::new(None, None).unwrap();
+
+        while coef > BigUint::zero() {
+            if &coef & BigUint::one() == BigUint::one() {
+                result = &result + &current;
+            }
+            current = &current + &current;
+            coef >>= 1;
+        }
+        result.clone()
+    }
+}
+
+impl Mul<Secp256k1Point> for BigUint {
+    type Output = Secp256k1Point;
+
+    fn mul(self, other: Secp256k1Point) -> Secp256k1Point {
+        let mut coef = self.clone();
+        let mut current = other.clone();
+        let mut result = Secp256k1Point::new(None, None).unwrap();
+
+        while coef > BigUint::zero() {
+            if &coef & BigUint::one() == BigUint::one() {
+                result = &result + &current;
+            }
+            current = &current + &current;
+            coef >>= 1;
+        }
+        result.clone()
+    }
+}
+
+impl Mul<&BigUint> for &Secp256k1Point {
+    type Output = Secp256k1Point;
+
+    fn mul(self, coefficient: &BigUint) -> Secp256k1Point {
+        let mut coef = coefficient.clone();
+        let mut current = self.clone();
+        let mut result = Secp256k1Point::new(None, None).unwrap();
+
+        while coef > BigUint::zero() {
+            if &coef & BigUint::one() == BigUint::one() {
+                result = &result + &current;
+            }
+            current = &current + &current;
+            coef >>= 1;
+        }
+        result.clone()
+    }
+}
+
+impl Mul<&Secp256k1Point> for BigUint {
+    type Output = Secp256k1Point;
+
+    fn mul(self, other: &Secp256k1Point) -> Secp256k1Point {
+        let mut coef = self.clone();
+        let mut current = other.clone();
+        let mut result = Secp256k1Point::new(None, None).unwrap();
+
+        while coef > BigUint::zero() {
+            if &coef & BigUint::one() == BigUint::one() {
+                result = &result + &current;
+            }
+            current = &current + &current;
+            coef >>= 1;
+        }
+        result.clone()
     }
 }
