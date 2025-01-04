@@ -1,9 +1,3 @@
-/*
- * We're going to define a struct/impl Point
- * to be a point on the general curve
- * y^2 = x^3 + ax + b
- */
-
 use crate::primitives::field_element::FieldElement;
 use core::panic;
 use num_bigint::{BigInt, BigUint};
@@ -15,8 +9,8 @@ pub const ORDER: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8
 
 #[derive(Debug, Clone)]
 pub struct Secp256k1Point {
-    x: Option<FieldElement>,
-    y: Option<FieldElement>,
+    pub x: Option<FieldElement>,
+    pub y: Option<FieldElement>,
 }
 
 pub enum Secp256k1 {
@@ -26,7 +20,7 @@ pub enum Secp256k1 {
     Order,
 }
 
-/// This represent secp256k1 group elements (curve points or infinity)
+/// This represent secp256k1 group elements (curve points or infinity) - doc copied from Floresta
 ///
 /// Normal points on the curve have fields:
 ///    * x: the x coordinate (a field element)
@@ -65,7 +59,7 @@ impl Secp256k1Point {
                 Ok(Self { x, y })
             } else {
                 Err(format!(
-                    "Invalid secp256k1 point:x = {:#?}, y = {:#?}",
+                    "Invalid secp256k1 point:x = {:?}, y = {:?}",
                     &x, &y
                 ))
             }
@@ -339,6 +333,25 @@ impl Mul<&BigUint> for &Secp256k1Point {
 }
 
 impl Mul<&Secp256k1Point> for BigUint {
+    type Output = Secp256k1Point;
+
+    fn mul(self, other: &Secp256k1Point) -> Secp256k1Point {
+        let mut coef = self.clone();
+        let mut current = other.clone();
+        let mut result = Secp256k1Point::new(None, None).unwrap();
+
+        while coef > BigUint::zero() {
+            if &coef & BigUint::one() == BigUint::one() {
+                result = &result + &current;
+            }
+            current = &current + &current;
+            coef >>= 1;
+        }
+        result.clone()
+    }
+}
+
+impl Mul<&Secp256k1Point> for &BigUint {
     type Output = Secp256k1Point;
 
     fn mul(self, other: &Secp256k1Point) -> Secp256k1Point {
