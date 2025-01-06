@@ -387,4 +387,36 @@ mod tests {
         .unwrap();
         assert_eq!(fe_1.pow(&exponent), fe_expected);
     }
+
+    #[test]
+    fn test_sqrt() {
+        let fe_1 = FieldElement::new(
+            "0000000000000000000000000000000000000000000000000000000000000004",
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+        )
+        .unwrap();
+
+        let fe_expected = FieldElement::new(
+            "0000000000000000000000000000000000000000000000000000000000000002",
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+        )
+        .unwrap();
+
+        assert_eq!(fe_1.sqrt(), fe_expected);
+    }
+
+    #[test]
+    fn test_sqrt_extreme() {
+        let fe_1 = FieldElement::new(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+        )
+        .unwrap();
+        let fe_expected = FieldElement::new(
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+        )
+        .unwrap();
+        assert_eq!(fe_1.sqrt(), fe_expected);
+    }
 }

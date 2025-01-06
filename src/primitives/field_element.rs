@@ -79,6 +79,17 @@ impl FieldElement {
             prime: self.prime.clone(),
         }
     }
+
+    pub fn sqrt(&self) -> Self {
+        let one = BigUint::one();
+        let four = BigUint::from(4u32);
+        let exp = (&self.prime + &one) / &four;
+        let res = self.num.modpow(&exp, &self.prime);
+        FieldElement {
+            num: res,
+            prime: self.prime.clone(),
+        }
+    }
 }
 
 /// Implement Display trait to mimic  __repr__ in python

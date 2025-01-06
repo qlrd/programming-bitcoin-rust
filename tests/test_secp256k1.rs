@@ -1,5 +1,5 @@
 use programming_bitcoin_in_rust::primitives::field_element::FieldElement;
-use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1, Secp256k1Point, ORDER, PRIME};
+use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1, Secp256k1Point, PRIME};
 
 #[cfg(test)]
 mod tests {
@@ -271,5 +271,70 @@ mod tests {
         let p = Secp256k1Point::new(Some(x), Some(y)).unwrap();
         let three = BigUint::from(3u32);
         assert_eq!(three * g, p);
+    }
+
+    #[test]
+    fn test_serialize_uncompressed_sec() {
+        let expected_sec = [
+            4u8, 249u8, 48u8, 138u8, 1u8, 146u8, 88u8, 195u8, 16u8, 73u8, 52u8, 79u8, 133u8, 248u8,
+            157u8, 82u8, 41u8, 181u8, 49u8, 200u8, 69u8, 131u8, 111u8, 153u8, 176u8, 134u8, 1u8,
+            241u8, 19u8, 188u8, 224u8, 54u8, 249u8, 56u8, 143u8, 123u8, 15u8, 99u8, 45u8, 232u8,
+            20u8, 15u8, 227u8, 55u8, 230u8, 42u8, 55u8, 243u8, 86u8, 101u8, 0u8, 169u8, 153u8,
+            52u8, 194u8, 35u8, 27u8, 108u8, 185u8, 253u8, 117u8, 132u8, 184u8, 230u8, 114u8,
+        ];
+
+        let g = Secp256k1::Generator.as_point();
+        let three = BigUint::from(3u32);
+        let p = &three * &g;
+        let sec = p.to_uncompressed_sec().unwrap();
+        assert_eq!(sec, expected_sec);
+    }
+
+    #[test]
+    fn test_serialize_compressed_sec() {
+        let expected_sec = [
+            2u8, 249u8, 48u8, 138u8, 1u8, 146u8, 88u8, 195u8, 16u8, 73u8, 52u8, 79u8, 133u8, 248u8,
+            157u8, 82u8, 41u8, 181u8, 49u8, 200u8, 69u8, 131u8, 111u8, 153u8, 176u8, 134u8, 1u8,
+            241u8, 19u8, 188u8, 224u8, 54u8, 249u8,
+        ];
+
+        let g = Secp256k1::Generator.as_point();
+        let three = BigUint::from(3u32);
+        let p = &three * &g;
+        let sec = p.to_compressed_sec().unwrap();
+        assert_eq!(sec, expected_sec);
+    }
+
+    #[test]
+    fn test_desserialize_uncompressed_sec() {
+        let g = Secp256k1::Generator.as_point();
+        let three = BigUint::from(3u32);
+        let expected_p = &three * &g;
+        let uncompressed_sec = vec![
+            4u8, 249u8, 48u8, 138u8, 1u8, 146u8, 88u8, 195u8, 16u8, 73u8, 52u8, 79u8, 133u8, 248u8,
+            157u8, 82u8, 41u8, 181u8, 49u8, 200u8, 69u8, 131u8, 111u8, 153u8, 176u8, 134u8, 1u8,
+            241u8, 19u8, 188u8, 224u8, 54u8, 249u8, 56u8, 143u8, 123u8, 15u8, 99u8, 45u8, 232u8,
+            20u8, 15u8, 227u8, 55u8, 230u8, 42u8, 55u8, 243u8, 86u8, 101u8, 0u8, 169u8, 153u8,
+            52u8, 194u8, 35u8, 27u8, 108u8, 185u8, 253u8, 117u8, 132u8, 184u8, 230u8, 114u8,
+        ];
+
+        let deserialized_sec = Secp256k1Point::deserialize(uncompressed_sec).unwrap();
+
+        assert_eq!(deserialized_sec, expected_p);
+    }
+
+    #[test]
+    fn test_deserialize_compressed_sec_even() {
+        let g = Secp256k1::Generator.as_point();
+        let three = BigUint::from(3u32);
+        let expected_p = &three * &g;
+        let compressed_sec = vec![
+            2u8, 249u8, 48u8, 138u8, 1u8, 146u8, 88u8, 195u8, 16u8, 73u8, 52u8, 79u8, 133u8, 248u8,
+            157u8, 82u8, 41u8, 181u8, 49u8, 200u8, 69u8, 131u8, 111u8, 153u8, 176u8, 134u8, 1u8,
+            241u8, 19u8, 188u8, 224u8, 54u8, 249u8,
+        ];
+
+        let deserialized_sec = Secp256k1Point::deserialize(compressed_sec).unwrap();
+        assert_eq!(deserialized_sec, expected_p);
     }
 }

@@ -4,6 +4,9 @@ use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1Point, PRIME};
 
 #[cfg(test)]
 mod tests {
+    use num_bigint::BigUint;
+    use num_traits::FromPrimitive;
+
     use super::*;
 
     #[test]
@@ -174,5 +177,37 @@ mod tests {
         let signature = key.sign(z).unwrap();
 
         assert!(key.verify(&z, &signature));
+    }
+
+    #[test]
+    fn test_serialized_from_prv_5001() {
+        let expected_sec = [
+            3u8, 87u8, 164u8, 243u8, 104u8, 134u8, 138u8, 138u8, 109u8, 87u8, 41u8, 145u8, 228u8,
+            132u8, 230u8, 100u8, 129u8, 15u8, 241u8, 76u8, 5u8, 192u8, 250u8, 2u8, 50u8, 117u8,
+            37u8, 17u8, 81u8, 254u8, 14u8, 83u8, 209u8,
+        ];
+
+        let n = BigUint::from_u32(5001u32).unwrap().to_bytes_be();
+        let mut prv = [0u8; 32];
+        prv[(32 - n.len())..].copy_from_slice(&n);
+        let key = Key::new(prv).unwrap();
+        let sec = key.public.to_compressed_sec().unwrap();
+        assert_eq!(sec, expected_sec);
+    }
+
+    #[test]
+    fn test_serialized_from_prv_2019_pow_5() {
+        let expected_sec = [
+            2u8, 147u8, 62u8, 194u8, 210u8, 177u8, 17u8, 185u8, 39u8, 55u8, 236u8, 18u8, 241u8,
+            197u8, 210u8, 15u8, 50u8, 51u8, 160u8, 173u8, 33u8, 205u8, 139u8, 54u8, 208u8, 188u8,
+            167u8, 160u8, 207u8, 165u8, 203u8, 135u8, 1u8,
+        ];
+
+        let n = BigUint::from_u64(2019u64.pow(5)).unwrap().to_bytes_be();
+        let mut prv = [0u8; 32];
+        prv[(32 - n.len())..].copy_from_slice(&n);
+        let key = Key::new(prv).unwrap();
+        let sec = key.public.to_compressed_sec().unwrap();
+        assert_eq!(sec, expected_sec);
     }
 }

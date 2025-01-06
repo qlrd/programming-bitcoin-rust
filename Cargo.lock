@@ -119,6 +119,7 @@ dependencies = [
  "hex",
  "hmac",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "sha2",
 ]

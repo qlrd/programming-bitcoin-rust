@@ -1,8 +1,12 @@
 use crate::primitives::field_element::FieldElement;
-use core::panic;
 use num_bigint::{BigInt, BigUint};
+use num_integer::Integer;
 use num_traits::{Num, One, Zero};
-use std::ops::{Add, Mul, Shl, Shr};
+use std::io::{Cursor, Read};
+use std::{
+    array::TryFromSliceError,
+    ops::{Add, Mul},
+};
 
 pub const PRIME: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 pub const ORDER: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
@@ -63,6 +67,89 @@ impl Secp256k1Point {
                     &x, &y
                 ))
             }
+        }
+    }
+
+    /// Binary version of uncompressed SEC format
+    pub fn to_uncompressed_sec(&self) -> Result<[u8; 65], TryFromSliceError> {
+        let mut serialized = vec![4u8];
+        serialized.extend(self.x.as_ref().unwrap().num.to_bytes_be());
+        serialized.extend(self.y.as_ref().unwrap().num.to_bytes_be());
+        <[u8; 65]>::try_from(serialized.as_slice())
+    }
+
+    /// Binary version of compressed SEC format
+    pub fn to_compressed_sec(&self) -> Result<[u8; 33], TryFromSliceError> {
+        let y = &self.y.as_ref().unwrap().num;
+        let two = BigUint::from(2u32);
+        let zero = BigUint::from(0u32);
+
+        let mut serialized = if y % two == zero {
+            vec![2u8]
+        } else {
+            vec![3u8]
+        };
+
+        serialized.extend(self.x.as_ref().unwrap().num.to_bytes_be());
+        <[u8; 33]>::try_from(serialized.as_slice())
+    }
+
+    /// Desserialize a vector of bytes to a point
+    pub fn deserialize(sec: Vec<u8>) -> Result<Secp256k1Point, String> {
+        let mut cursor = Cursor::new(sec);
+        let mut sec_type = [0u8; 1];
+        let mut x = [0u8; 32];
+
+        cursor.read_exact(&mut sec_type).unwrap();
+        cursor.read_exact(&mut x).unwrap();
+
+        let fe_x = FieldElement {
+            num: BigUint::from_bytes_be(x.as_slice()),
+            prime: Secp256k1::Prime.as_biguint(),
+        };
+
+        // Deserialize a uncompressed SEC formated point
+        if sec_type[0] == 4u8 {
+            let mut y = [0u8; 32];
+            cursor.read_exact(&mut y).unwrap();
+
+            let fe_y = FieldElement {
+                num: BigUint::from_bytes_be(y.as_slice()),
+                prime: Secp256k1::Prime.as_biguint(),
+            };
+
+            return Ok(Secp256k1Point {
+                x: Some(fe_x),
+                y: Some(fe_y),
+            });
+        }
+
+        // Deserialize a compressed SEC formated point
+        let is_even = sec_type[0] == 2u8;
+        let fe_7 = FieldElement {
+            num: BigUint::from(7u8),
+            prime: Secp256k1::Prime.as_biguint(),
+        };
+
+        let alpha_fe = fe_x.pow(&BigInt::from(3u8)) + fe_7;
+        let beta_fe = alpha_fe.sqrt();
+
+        let prime = Secp256k1::Prime.as_biguint();
+
+        if is_even == beta_fe.num.is_even() {
+            Ok(Secp256k1Point {
+                x: Some(fe_x),
+                y: Some(beta_fe),
+            })
+        } else {
+            let odd = FieldElement {
+                num: &prime - &beta_fe.num,
+                prime: prime.clone(),
+            };
+            Ok(Secp256k1Point {
+                x: Some(fe_x),
+                y: Some(odd),
+            })
         }
     }
 }
