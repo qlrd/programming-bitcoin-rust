@@ -5,7 +5,7 @@ use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1Point, PRIME};
 #[cfg(test)]
 mod tests {
     use num_bigint::BigUint;
-    use num_traits::FromPrimitive;
+    use num_traits::{FromPrimitive, Num};
 
     use super::*;
 
@@ -181,6 +181,7 @@ mod tests {
 
     #[test]
     fn test_serialized_from_prv_5001() {
+        // 0357a4f368868a8a6d572991e484e664810ff14c05c0fa023275251151fe0e53d1
         let expected_sec = [
             3u8, 87u8, 164u8, 243u8, 104u8, 134u8, 138u8, 138u8, 109u8, 87u8, 41u8, 145u8, 228u8,
             132u8, 230u8, 100u8, 129u8, 15u8, 241u8, 76u8, 5u8, 192u8, 250u8, 2u8, 50u8, 117u8,
@@ -197,6 +198,7 @@ mod tests {
 
     #[test]
     fn test_serialized_from_prv_2019_pow_5() {
+        // 02933ec2d2b111b92737ec12f1c5d20f3233a0ad21cd8b36d0bca7a0cfa5cb8701
         let expected_sec = [
             2u8, 147u8, 62u8, 194u8, 210u8, 177u8, 17u8, 185u8, 39u8, 55u8, 236u8, 18u8, 241u8,
             197u8, 210u8, 15u8, 50u8, 51u8, 160u8, 173u8, 33u8, 205u8, 139u8, 54u8, 208u8, 188u8,
@@ -204,6 +206,25 @@ mod tests {
         ];
 
         let n = BigUint::from_u64(2019u64.pow(5)).unwrap().to_bytes_be();
+        let mut prv = [0u8; 32];
+        prv[(32 - n.len())..].copy_from_slice(&n);
+        let key = Key::new(prv).unwrap();
+        let sec = key.public.to_compressed_sec().unwrap();
+        assert_eq!(sec, expected_sec);
+    }
+
+    #[test]
+    fn test_serialized_from_prv_0xdeadbeef54321() {
+        // 0296be5b1292f6c856b3c5654e886fc13511462059089cdf9c479623bfcbe77690
+        let expected_sec = [
+            2u8, 150u8, 190u8, 91u8, 18u8, 146u8, 246u8, 200u8, 86u8, 179u8, 197u8, 101u8, 78u8,
+            136u8, 111u8, 193u8, 53u8, 17u8, 70u8, 32u8, 89u8, 8u8, 156u8, 223u8, 156u8, 71u8,
+            150u8, 35u8, 191u8, 203u8, 231u8, 118u8, 144u8,
+        ];
+
+        let n = BigUint::from_str_radix("deadbeef54321", 16)
+            .unwrap()
+            .to_bytes_be();
         let mut prv = [0u8; 32];
         prv[(32 - n.len())..].copy_from_slice(&n);
         let key = Key::new(prv).unwrap();
