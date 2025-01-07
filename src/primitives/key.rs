@@ -1,5 +1,6 @@
 use crate::primitives::field_element::FieldElement;
 use crate::primitives::secp256k1::{Secp256k1, Secp256k1Point};
+use crate::primitives::signature::Signature;
 use hex;
 use hmac::{Hmac, Mac};
 use num_bigint::BigUint;
@@ -15,12 +16,6 @@ type HmacSha256 = Hmac<Sha256>;
 pub struct Key {
     private: [u8; 32],
     pub public: Secp256k1Point,
-}
-
-#[derive(Debug, Clone)]
-pub struct Signature {
-    pub r: Vec<u8>,
-    pub s: Vec<u8>,
 }
 
 /// Implements a struct representation that stores
@@ -141,21 +136,7 @@ impl Key {
             s_num = &ord - &s_num;
         }
 
-        if r_num.to_bytes_be().len() == 32 {
-            let r = <[u8; 32]>::try_from(r_num.to_bytes_be()).unwrap();
-            let s = <[u8; 32]>::try_from(s_num.to_bytes_be()).unwrap();
-            Ok(Signature {
-                r: r.to_vec(),
-                s: s.to_vec(),
-            })
-        } else {
-            let r = <[u8; 33]>::try_from(r_num.to_bytes_be()).unwrap();
-            let s = <[u8; 32]>::try_from(s_num.to_bytes_be()).unwrap();
-            Ok(Signature {
-                r: r.to_vec(),
-                s: s.to_vec(),
-            })
-        }
+        Ok(Signature::from_biguint(r_num, s_num).unwrap())
     }
 
     /// Apply signature verification from a given hashed message
