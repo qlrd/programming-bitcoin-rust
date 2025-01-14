@@ -1,6 +1,7 @@
 use num_bigint::BigUint;
 use programming_bitcoin_in_rust::primitives::key::Key;
 use programming_bitcoin_in_rust::primitives::signature::Signature;
+use programming_bitcoin_in_rust::utils::hasher::{double_sha256, sha256};
 
 #[cfg(test)]
 mod tests {
@@ -26,7 +27,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::sha256(message).unwrap();
+        let z = sha256(message).unwrap();
         let signature = key.sign(z).unwrap();
 
         assert_eq!(signature.r, r);
@@ -49,7 +50,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::double_sha256(message).unwrap();
+        let z = double_sha256(message).unwrap();
         let signature = key.sign(z).unwrap();
 
         assert_eq!(signature.r, r);
@@ -62,7 +63,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::sha256(message).unwrap();
+        let z = sha256(message).unwrap();
         let signature = key.sign(z).unwrap();
 
         assert!(key.verify(&z, &signature));
@@ -74,7 +75,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::double_sha256(message).unwrap();
+        let z = double_sha256(message).unwrap();
         let signature = key.sign(z).unwrap();
 
         assert!(key.verify(&z, &signature));

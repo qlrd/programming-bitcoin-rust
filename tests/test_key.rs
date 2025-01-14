@@ -1,6 +1,7 @@
 use programming_bitcoin_in_rust::primitives::field_element::FieldElement;
 use programming_bitcoin_in_rust::primitives::key::Key;
 use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1Point, PRIME};
+use programming_bitcoin_in_rust::utils::hasher::{double_sha256, sha256};
 
 #[cfg(test)]
 mod tests {
@@ -10,13 +11,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_public_from() {
+    fn test_to_public() {
         let prv: [u8; 32] = [
             0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
             0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8,
         ];
 
-        let public = Key::public_from(&prv).unwrap();
+        let public = Key::to_public(&prv).unwrap();
         let x = FieldElement::new(
             "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
             PRIME,
@@ -34,13 +35,13 @@ mod tests {
     }
 
     #[test]
-    fn test_new() {
+    fn test_from_bytes_be() {
         let prv: [u8; 32] = [
             0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
             0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8,
         ];
 
-        assert!(Key::new(prv).is_ok());
+        assert!(Key::from_bytes_be(prv).is_ok());
     }
 
     #[test]
@@ -57,7 +58,7 @@ mod tests {
             7u8, 49u8, 108u8, 236u8, 18u8, 95u8,
         ];
         let message = b"Hello, world";
-        let sha = Key::sha256(message).unwrap();
+        let sha = sha256(message).unwrap();
         assert_eq!(sha, expected_sha);
     }
 
@@ -69,7 +70,7 @@ mod tests {
             16u8, 169u8, 160u8, 221u8, 221u8, 202u8,
         ];
         let message = b"Hello, world";
-        let sha = Key::double_sha256(message).unwrap();
+        let sha = double_sha256(message).unwrap();
         assert_eq!(sha, expected_sha);
     }
 
@@ -85,7 +86,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::sha256(message).unwrap();
+        let z = sha256(message).unwrap();
         let k = key.deterministic_k(&z).unwrap();
         assert_eq!(k, expected_k);
     }
@@ -102,7 +103,7 @@ mod tests {
         let key = Key::from_hexstr(prv).unwrap();
         let message = b"Hello, world";
 
-        let z = Key::double_sha256(message).unwrap();
+        let z = double_sha256(message).unwrap();
         let k = key.deterministic_k(&z).unwrap();
         assert_eq!(k, expected_k);
     }
@@ -119,7 +120,7 @@ mod tests {
         let n = BigUint::from_u32(5001u32).unwrap().to_bytes_be();
         let mut prv = [0u8; 32];
         prv[(32 - n.len())..].copy_from_slice(&n);
-        let key = Key::new(prv).unwrap();
+        let key = Key::from_bytes_be(prv).unwrap();
         let sec = key.public.to_compressed_sec().unwrap();
         assert_eq!(sec, expected_sec);
     }
@@ -136,7 +137,7 @@ mod tests {
         let n = BigUint::from_u64(2019u64.pow(5)).unwrap().to_bytes_be();
         let mut prv = [0u8; 32];
         prv[(32 - n.len())..].copy_from_slice(&n);
-        let key = Key::new(prv).unwrap();
+        let key = Key::from_bytes_be(prv).unwrap();
         let sec = key.public.to_compressed_sec().unwrap();
         assert_eq!(sec, expected_sec);
     }
@@ -155,7 +156,7 @@ mod tests {
             .to_bytes_be();
         let mut prv = [0u8; 32];
         prv[(32 - n.len())..].copy_from_slice(&n);
-        let key = Key::new(prv).unwrap();
+        let key = Key::from_bytes_be(prv).unwrap();
         let sec = key.public.to_compressed_sec().unwrap();
         assert_eq!(sec, expected_sec);
     }

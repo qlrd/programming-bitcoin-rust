@@ -1,10 +1,11 @@
 use num_bigint::BigUint;
 use num_traits::Num;
-use programming_bitcoin_in_rust::utils::base58::Base58;
+use programming_bitcoin_in_rust::utils::base58::{
+    decode_base58, encode_base58, encode_base58check,
+};
 
 #[cfg(test)]
 mod test {
-
     use super::*;
 
     #[test]
@@ -20,7 +21,7 @@ mod test {
             114u8, 156u8, 72u8, 92u8, 166u8, 126u8, 65u8, 72u8, 237u8, 236u8, 248u8, 185u8,
         ];
 
-        let result = Base58::decode(prv).unwrap();
+        let result = decode_base58(prv).unwrap();
 
         assert_eq!(result, expected);
     }
@@ -43,7 +44,30 @@ mod test {
         for i in 0..hexs.len() {
             let num = BigUint::from_str_radix(hexs[i], 16).unwrap();
             let bytes = num.to_bytes_be();
-            let result = Base58::encode(bytes).unwrap();
+            let result = encode_base58(bytes).unwrap();
+            assert_eq!(result, expected[i]);
+        }
+    }
+
+    #[test]
+    fn test_encode_with_checksum() {
+        // Programming bitcoin chapter 4 exercise 4
+        let hexs = [
+            "7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d",
+            "eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c",
+            "c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab6",
+        ];
+
+        let expected = [
+            "wdA2ffYs5cudrdkhFm5Ym94AuLvavacapuDBL2CAcvqXHcM56",
+            "Qwj1mwXNifQmo5VV2s587usAy4QRUviQsBxoe4EJXyb5CAhV",
+            "2WhRyzK3iKFveq4hvQ3VR9uau26t6qZCMhADPAVMeMR6S5dV2q",
+        ];
+
+        for i in 0..hexs.len() {
+            let num = BigUint::from_str_radix(hexs[i], 16).unwrap();
+            let bytes = num.to_bytes_be();
+            let result = encode_base58check(&bytes).unwrap();
             assert_eq!(result, expected[i]);
         }
     }

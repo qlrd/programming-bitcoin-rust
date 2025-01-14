@@ -1,16 +1,11 @@
 use crate::primitives::field_element::FieldElement;
 use crate::primitives::secp256k1::{Secp256k1, Secp256k1Point};
 use crate::primitives::signature::Signature;
+use crate::utils::base58::encode_base58check;
+use crate::utils::hasher::{hash160, hmac, MAINNET_PREFIX, TESTNET_PREFIX};
 use hex;
-use hmac::{Hmac, Mac};
 use num_bigint::BigUint;
 use num_traits::One;
-use sha2::{Digest, Sha256};
-use std::array::TryFromSliceError;
-use std::convert::TryFrom;
-
-// Create alias for HMAC-SHA256
-type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug, Clone)]
 pub struct Key {
@@ -22,7 +17,7 @@ pub struct Key {
 /// a private key and its correspondent public key
 impl Key {
     /// Create a Secp256k1Point from a given private key represented as bytes
-    pub fn public_from(private: &[u8; 32]) -> Result<Secp256k1Point, String> {
+    pub fn to_public(private: &[u8; 32]) -> Result<Secp256k1Point, String> {
         let prime = Secp256k1::Prime.as_biguint().to_str_radix(16);
         let p = prime.as_str();
         let private_num = BigUint::from_bytes_be(private).to_str_radix(16);
@@ -32,8 +27,8 @@ impl Key {
     }
 
     /// Create a Key from a private key represented as 32 bytes
-    pub fn new(private: [u8; 32]) -> Result<Self, String> {
-        let public = Self::public_from(&private).unwrap();
+    pub fn from_bytes_be(private: [u8; 32]) -> Result<Self, String> {
+        let public = Self::to_public(&private).unwrap();
         Ok(Self { private, public })
     }
 
@@ -50,21 +45,7 @@ impl Key {
             Ok(arr) => arr,
             Err(_) => return Err("Hexadecimal string does not decode to 32 bytes".to_string()),
         };
-        Self::new(bytes_private)
-    }
-
-    /// Apply sha256 hash to a given slice of bytes
-    pub fn sha256(message: &[u8]) -> Result<[u8; 32], TryFromSliceError> {
-        let mut hasher = Sha256::new();
-        hasher.update(message);
-        <[u8; 32]>::try_from(hasher.finalize().as_slice())
-    }
-
-    /// Apply double sha256 hash to a given slice of bytes
-    pub fn double_sha256(message: &[u8]) -> Result<[u8; 32], TryFromSliceError> {
-        let first_hash = Self::sha256(message)?; // First hash
-        let slice_hash = first_hash.as_slice();
-        Self::sha256(slice_hash)
+        Self::from_bytes_be(bytes_private)
     }
 
     /// Apply RFC6979
@@ -79,30 +60,22 @@ impl Key {
         let mut v_bytes = vec![1u8; 32];
 
         // Closure to update HMAC
-        let update_hmac = |key: &[u8], data: &[&[u8]]| -> Result<Vec<u8>, String> {
-            let mut mac = HmacSha256::new_from_slice(key)
-                .map_err(|e| format!("Failed to init HMAC: {}", e))?;
-            for part in data {
-                mac.update(part);
-            }
-            Ok(mac.finalize().into_bytes().to_vec())
-        };
 
         // Redefine k with byte 00
-        k_bytes = update_hmac(&k_bytes, &[&v_bytes, &[0u8], &self.private, z])?;
-        v_bytes = update_hmac(&k_bytes, &[&v_bytes])?;
-        k_bytes = update_hmac(&k_bytes, &[&v_bytes, &[1u8], &self.private, z])?;
-        v_bytes = update_hmac(&k_bytes, &[&v_bytes])?;
+        k_bytes = hmac(&k_bytes, &[&v_bytes, &[0u8], &self.private, z])?;
+        v_bytes = hmac(&k_bytes, &[&v_bytes])?;
+        k_bytes = hmac(&k_bytes, &[&v_bytes, &[1u8], &self.private, z])?;
+        v_bytes = hmac(&k_bytes, &[&v_bytes])?;
 
         loop {
-            v_bytes = update_hmac(&k_bytes, &[&v_bytes])?;
+            v_bytes = hmac(&k_bytes, &[&v_bytes])?;
             let k = BigUint::from_bytes_be(&v_bytes);
             if k >= BigUint::one() && k < ord {
                 let result = <[u8; 32]>::try_from(k.to_bytes_be()).unwrap();
                 return Ok(result);
             }
-            k_bytes = update_hmac(&k_bytes, &[&v_bytes, &[0u8]])?;
-            v_bytes = update_hmac(&k_bytes, &[&v_bytes])?;
+            k_bytes = hmac(&k_bytes, &[&v_bytes, &[0u8]])?;
+            v_bytes = hmac(&k_bytes, &[&v_bytes])?;
         }
     }
 
@@ -161,5 +134,39 @@ impl Key {
         let total = u_g + v_p;
 
         total.x.unwrap().num == r_num
+    }
+
+    /// Return an address string (P2PKH format)
+    pub fn to_pubkey_hash(&self, compressed: bool, testnet: bool) -> Result<String, String> {
+        // Get the public key
+        let pubkey = &self.public;
+
+        // Generate the SEC (serialized public key) and hash160
+        let h160 = if compressed {
+            pubkey
+                .to_compressed_sec()
+                .map_err(|e| format!("Failed to compress public key: {:?}", e))
+                .and_then(|sec| {
+                    hash160(&sec).map_err(|e| format!("Failed to hash public key: {:?}", e))
+                })?
+        } else {
+            pubkey
+                .to_uncompressed_sec()
+                .map_err(|e| format!("Failed to uncompress public key: {:?}", e))
+                .and_then(|sec| {
+                    hash160(&sec).map_err(|e| format!("Failed to hash public key: {:?}", e))
+                })?
+        };
+
+        // Determine the prefix and construct the address
+        let prefix = if testnet {
+            TESTNET_PREFIX
+        } else {
+            MAINNET_PREFIX
+        };
+        let mut result = vec![prefix];
+        result.extend_from_slice(&h160);
+
+        encode_base58check(&result).map_err(|e| format!("Failed to encode address: {:?}", e))
     }
 }
