@@ -1,5 +1,5 @@
-use programming_bitcoin_in_rust::primitives::field_element::FieldElement;
-use programming_bitcoin_in_rust::primitives::secp256k1::{Secp256k1, Secp256k1Point, PRIME};
+use field_element::FieldElement;
+use secp256k1::{Secp256k1, Secp256k1Point, PRIME};
 
 #[cfg(test)]
 mod tests {

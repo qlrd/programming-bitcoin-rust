@@ -1,0 +1,16 @@
+[package]
+name = "key"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+field_element = { path = "../field_element"}
+secp256k1 = { path = "../secp256k1"}
+hasher = { path = "../hasher" }
+base58 = { path = "../base58" }
+hex = "0.4.3"
+num-bigint = "0.4.6"
+num-traits = "0.2.19"

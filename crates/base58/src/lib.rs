@@ -1,6 +1,6 @@
+use hasher::{double_sha256, sha256};
 use num_bigint::BigUint;
 use num_traits::{ToPrimitive, Zero};
-use sha2::{Digest, Sha256};
 
 const ALPHABET: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
@@ -30,16 +30,11 @@ pub fn decode_base58(base58: &str) -> Result<Vec<u8>, String> {
         return Err("Invalid Base58 string: too short to contain a checksum".to_string());
     }
 
+    // Step 5: calculate checksum and compare with given checksum
     let (data, checksum) = full_byte_array.split_at(full_byte_array.len() - 4);
+    let calc_checksum = double_sha256(data).unwrap();
 
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    let hash_once = hasher.finalize_reset();
-
-    hasher.update(hash_once);
-    let hash_twice = hasher.finalize();
-
-    if checksum != &hash_twice[..4] {
+    if checksum != &calc_checksum[..4] {
         return Err(format!(
             "Invalid checksum '{:x?}' for string '{}'",
             checksum, base58
@@ -89,13 +84,12 @@ pub fn encode_base58(bytes: Vec<u8>) -> Result<String, String> {
 /// Encode bytes to base58check format
 pub fn encode_base58check(bytes: &[u8]) -> Result<String, String> {
     // create the checksum
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    let checksum = hasher.finalize()[..4].to_vec();
+    let hash = sha256(bytes).unwrap();
+    let checksum = &hash[..4].to_vec();
 
     let mut data = Vec::with_capacity(bytes.len() + checksum.len()) as Vec<u8>;
     data.extend_from_slice(bytes);
-    data.extend_from_slice(&checksum);
+    data.extend_from_slice(checksum);
 
     encode_base58(data).map_err(|e| format!("Encoding failed: {}", e))
 }

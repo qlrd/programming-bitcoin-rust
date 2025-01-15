@@ -1,0 +1,12 @@
+[package]
+name = "base58"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+hasher = { path = "../hasher" }

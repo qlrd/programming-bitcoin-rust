@@ -1,0 +1,13 @@
+[package]
+name = "secp256k1"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+field_element = { path = "../field_element" }
+num-bigint = "0.4.6"
+num-integer = "0.1.46"
+num-traits = "0.2.19"

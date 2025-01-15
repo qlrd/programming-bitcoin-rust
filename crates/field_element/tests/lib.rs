@@ -1,6 +1,6 @@
+use field_element::FieldElement;
 use num_bigint::BigInt;
 use num_traits::Num;
-use programming_bitcoin_in_rust::primitives::field_element::FieldElement;
 
 #[cfg(test)]
 mod tests {

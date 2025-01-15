@@ -1,8 +1,6 @@
+use base58::{decode_base58, encode_base58, encode_base58check};
 use num_bigint::BigUint;
 use num_traits::Num;
-use programming_bitcoin_in_rust::utils::base58::{
-    decode_base58, encode_base58, encode_base58check,
-};
 
 #[cfg(test)]
 mod test {

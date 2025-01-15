@@ -1,4 +1,4 @@
-use crate::primitives::field_element::FieldElement;
+use field_element::FieldElement;
 use num_bigint::{BigInt, BigUint};
 use num_integer::Integer;
 use num_traits::{Num, One, Zero};
