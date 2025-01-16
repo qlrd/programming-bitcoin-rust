@@ -1,6 +1,6 @@
 use base58::encode_base58check;
 use field_element::FieldElement;
-use hasher::{hash160, hmac, MAINNET_PREFIX, TESTNET_PREFIX};
+use hasher::{hash160, hmac256, MAINNET_PREFIX, TESTNET_PREFIX};
 use num_bigint::BigUint;
 use num_traits::One;
 use secp256k1::{Secp256k1, Secp256k1Point};
@@ -138,20 +138,20 @@ impl Key {
         // Closure to update HMAC
 
         // Redefine k with byte 00
-        k_bytes = hmac(&k_bytes, &[&v_bytes, &[0u8], &self.private, z])?;
-        v_bytes = hmac(&k_bytes, &[&v_bytes])?;
-        k_bytes = hmac(&k_bytes, &[&v_bytes, &[1u8], &self.private, z])?;
-        v_bytes = hmac(&k_bytes, &[&v_bytes])?;
+        k_bytes = hmac256(&k_bytes, &[&v_bytes, &[0u8], &self.private, z])?;
+        v_bytes = hmac256(&k_bytes, &[&v_bytes])?;
+        k_bytes = hmac256(&k_bytes, &[&v_bytes, &[1u8], &self.private, z])?;
+        v_bytes = hmac256(&k_bytes, &[&v_bytes])?;
 
         loop {
-            v_bytes = hmac(&k_bytes, &[&v_bytes])?;
+            v_bytes = hmac256(&k_bytes, &[&v_bytes])?;
             let k = BigUint::from_bytes_be(&v_bytes);
             if k >= BigUint::one() && k < ord {
                 let result = <[u8; 32]>::try_from(k.to_bytes_be()).unwrap();
                 return Ok(result);
             }
-            k_bytes = hmac(&k_bytes, &[&v_bytes, &[0u8]])?;
-            v_bytes = hmac(&k_bytes, &[&v_bytes])?;
+            k_bytes = hmac256(&k_bytes, &[&v_bytes, &[0u8]])?;
+            v_bytes = hmac256(&k_bytes, &[&v_bytes])?;
         }
     }
 
